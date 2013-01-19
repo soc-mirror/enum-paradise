@@ -1,58 +1,39 @@
 # Enum Paradise (WORK IN PROGRESS)
 
-Scala enumeration implementation using type macros provided by [Macro Paradise](http://docs.scala-lang.org/overviews/macros/paradise.html)
+Scala enumeration implementation using type macros provided by [Macro Paradise](http://docs.scala-lang.org/overviews/macros/paradise.html) intended to be a compatible with Java enums.
 
 ## Usage
 
-Enumeration:
+    class Days extends Enum(Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday)
+    Days.Monday
+    Days.values // Array(Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday): Array[Days]
+    Days.valueOf("Sunday") // Sunday: Days
 
-    object Days extends Enum(Monday, Tuesday, Wednesday, Thursday, Friday)
+## Plans
 
-    implicitly[Days.Monday.type <:< Days.Value]
+Support for
 
-    import Days._
-    def f(x: Value) = x match {
-      case Monday => 
-      case Tuesday => 
-      case Wednesday => 
-      case Thursday => 
-      //case Friday => 
+1. User-defined constructors
+2. User-defined methods
+3. User-defined overridden methods in enum items
+4. Adding/implementing traits
+
+<!-- -->
+
+    class Days(val inGerman: String) /* 1. */ extends Enum with HasName /* 4. */ (
+      Monday("Montag"),
+      Tuesday("Dienstag"),
+      Wednesday("Mittwoch"),
+      Thursday("Donnerstag"),
+      Friday("Freitag"),
+      Saturday("Samstag") { override def workingDay: Boolean = false }, // 3.
+      Sunday("Sonntag") { override def workingDay: Boolean = false }
+    ) {
+      def abbreviation = name take 3 // 2.
+      def workingDay: Boolean = true // 3.
     }
-    //[warn] /core/src/main/scala/enum.scala:10: match may not be exhaustive.
-    //[warn] It would fail on the following input: Friday
 
-Enumeration with specific names:
-
-    object Months extends Enum(
-      January("Jan"),
-      February("Feb"),
-      Mars("Mar"),
-      April("Apr"),
-      May,
-      June("Jun"),
-      July("Jul"),
-      August("Aug"),
-      September("Sep"),
-      October("Oct"),
-      November("Nov"),
-      December("Dec")
-    )
-
-    def code = Months.values.map(_.name.toUpperCase)
-
-    //scala> scalax.MonthsDemo.code
-    //res1: Seq[String] = List(JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC)
-
-Enumeration with specific value type:
-
-    sealed trait Planet extends Value
-
-    object Planets extends EnumOf[Planet](
-      Mercury,
-      Venus
-    )
-
-    implicitly[Planets.Value =:= Planet]
+    trait HasName { def name: String }
 
 ## License
 
