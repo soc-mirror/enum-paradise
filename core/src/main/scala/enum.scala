@@ -1,6 +1,6 @@
 package scalax
 
-class Days() extends Enum(
+class Days extends Enum(
     Monday,
     Tuesday,
     Wednesday,

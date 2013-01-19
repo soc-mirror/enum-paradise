@@ -11,44 +11,62 @@ package object scalax {
       import c.universe._
       import Flag._
 
+      val ClassDef(_, className, _, _) = c.enclosingClass
+
       case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
       def enumInstance(name: String, ordinal: Int) = {
         val tree =
           Apply(
-            New(c.enclosingClass.tpe), // Wrong!
-            List(Literal(Constant(ordinal)), Literal(Constant(name)))
+            New(Ident(className)),
+            List(Literal(Constant(name)), Literal(Constant(ordinal)))
           )
         new EnumDef(ordinal, name, tree)
       }
 
+
       lazy val enumDefs = values.toList.collect {
+        // <ENUM>
         case Ident(TermName(name)) => enumInstance(name, -1)
-        //case Apply(Ident(TermName(name)), List(Literal(Constant(desc)))) => enumInstance(name, name)
-        //case Apply(Ident(TermName(id)), List(Block(_))) => enumInstance(id, "blocky")
+        // <ENUM>(<enumParam>, ...)
+        // <ENUM> { <enumDef>, ... }
+        // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
       }
 
       // <ENUM> ===> @static val <ENUM>: <EnumClass> = new <EnumClass>(ordinal = 0, name = "<ENUM>")
-      lazy val staticFields: List[ValDef] = enumDefs.map { enumDef =>
+      /* error: scalax.Days does not take parameters */
+      lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
         ValDef(
             mods = Modifiers(PRIVATE /*, STATIC */),
             name = TermName(enumDef.name),
-            tpt = TypeTree(),
-            rhs = enumDef.tree
+            tpt  = TypeTree(),
+            rhs  = enumDef.tree
         )
       }
 
-      // @static private val values: Array[<EnumClass>] = Array(<ENUM>, ...)
+      // @static private val $VALUES: Array[<EnumClass>] = Array(<ENUM>, ...)
       lazy val privateStaticValuesField: ValDef =
         ValDef(
           mods = Modifiers(PRIVATE /*, STATIC */),
           name = TermName("$VALUES"),
-          tpt = TypeTree(),
-          rhs = ???
+          tpt  = AppliedTypeTree(Select(Ident(TermName("scala")), TypeName("Array")), List(Ident(className))),
+          // TODO: Currently Array()
+          rhs  = Apply(Apply(TypeApply(Select(Select(Ident(TermName("scala")), TermName("Array")), TermName("apply")), List(Ident(className))), List()), List(Select(Ident(TermName("Predef")), TermName("implicitly"))))
         )
 
       // @static def values: Array[<EnumClass>] = $VALUES.clone()
-      lazy val staticValuesMethod: DefDef = ???
+      lazy val staticValuesMethod: DefDef =
+        DefDef(
+          mods = Modifiers(/* STATIC */),
+          name = TermName("values"),
+          tparams  = List(),
+          vparamss = List(),
+          tpt  =
+            AppliedTypeTree(
+              tpt  = Select(Ident(TermName("scala")), TypeName("Array")),
+              args = List(Ident(className))
+            ),
+          rhs  = Apply(Select(Ident(TermName("$VALUES")), TermName("clone")), List()))
 
       // @static def valueOf(name: String): <EnumClass> = Enum.valueOf(<EnumClass>, name)
       lazy val staticValueOfMethod: DefDef =
@@ -62,8 +80,8 @@ package object scalax {
                 ValDef(
                   mods = Modifiers(PARAM),
                   name = TermName("name"),
-                  tpt = Ident(TypeName("String")),
-                  rhs = EmptyTree
+                  tpt  = Ident(TypeName("String")),
+                  rhs  = EmptyTree
                 )
               )
             ),
@@ -77,21 +95,72 @@ package object scalax {
 
       // extends java.lang.Enum[<EnumClass>]
       val extendsEnum =
-        AppliedTypeTree(Select(Select(Ident(TermName("java")), TermName("lang")), TypeName("Enum")), List(c.enclosingClass))
+        AppliedTypeTree(
+          tpt  = Select(Select(Ident(TermName("java")), TermName("lang")), TypeName("Enum")),
+          args = List(Ident(className))
+        )
+
+      // with scala.math.Ordered[<EnumClass>]
+      /* error: overriding method compareTo in class Enum of type (x$1: Foo)Int;
+       * method compareTo in trait Ordered of type (that: Foo)Int cannot override final member */
+      val withOrdered =
+        AppliedTypeTree(Select(Select(Ident(TermName("scala")), TermName("math")), TypeName("Ordered")), List(c.enclosingClass))
 
       // new <EnumClass>(name: String, ordinal) invokes new java.lang.Enum(name, ordinal)
       val enumConstructors =
         List(
-          ValDef(Modifiers(PRIVATE | LOCAL /*| PARAMACCESSOR*/), TermName("name"), Ident(TypeName("String")), EmptyTree),
-          ValDef(Modifiers(PRIVATE | LOCAL /*| PARAMACCESSOR*/), TermName("ordinal"), Ident(TypeName("Int")), EmptyTree),
-          DefDef(Modifiers(), nme.CONSTRUCTOR, List(), List(List(ValDef(Modifiers(PARAM /*| PARAMACCESSOR*/), TermName("name"), Ident(TypeName("String")), EmptyTree), ValDef(Modifiers(PARAM /*| PARAMACCESSOR*/), TermName("ordinal"), Ident(TypeName("Int")), EmptyTree))), TypeTree(), Block(List(Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), List(Ident(TermName("name")), Ident(TermName("ordinal"))))), Literal(Constant(()))))
+          ValDef(
+            mods = Modifiers(PRIVATE | LOCAL /*| PARAMACCESSOR*/),
+            name = TermName("name"),
+            tpt  = Ident(TypeName("String")),
+            rhs  = EmptyTree
+          ),
+          ValDef(
+            mods = Modifiers(PRIVATE | LOCAL /*| PARAMACCESSOR*/),
+            name = TermName("ordinal"),
+            tpt  = Ident(TypeName("Int")),
+            rhs  = EmptyTree
+          ),
+          DefDef(
+            mods = Modifiers(),
+            name = nme.CONSTRUCTOR,
+            tparams  = List(),
+            vparamss =
+              List(
+                List(
+                  ValDef(
+                    mods = Modifiers(PARAM /*| PARAMACCESSOR*/),
+                    name = TermName("name"),
+                    tpt  = Ident(TypeName("String")),
+                    rhs  = EmptyTree
+                  ),
+                  ValDef(
+                    mods = Modifiers(PARAM /*| PARAMACCESSOR*/),
+                    name = TermName("ordinal"),
+                    tpt  = Ident(TypeName("Int")),
+                    rhs  = EmptyTree
+                  )
+                )
+              ),
+            tpt  = TypeTree(),
+            rhs  =
+              Block(
+                List(
+                  Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), List(Ident(TermName("name")), Ident(TermName("ordinal"))))
+                ),
+                Literal(Constant(()))
+              )
+          )
         )
 
-      val generatedCode = /* staticFields ++ privateStaticValuesField :: staticValuesMethod :: */ List(staticValueOfMethod)
+      val stdConstructor =
+        DefDef(Modifiers(), nme.CONSTRUCTOR, List(), List(List()), TypeTree(), Block(List(Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), List())), Literal(Constant(()))))
+
+      val generatedCode = /*staticEnumFields ++*/ (privateStaticValuesField :: staticValuesMethod :: staticValueOfMethod :: Nil)
 
       val Template(_, _, _ :: existingCode) = c.enclosingTemplate
 
-      Template(List(extendsEnum), emptyValDef, generatedCode ++ enumConstructors ++ existingCode)
+      Template(List(extendsEnum), emptyValDef, generatedCode ++ enumConstructors ++ existingCode /*:+ stdConstructor*/)
     }
   }
 }
