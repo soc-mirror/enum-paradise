@@ -13,7 +13,7 @@ package object scalax {
 
       case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
-      def enumInstance(ordinal: Int, name: String) = {
+      def enumInstance(name: String, ordinal: Int) = {
         val tree =
           Apply(
             New(c.enclosingClass.tpe), // Wrong!
@@ -23,7 +23,7 @@ package object scalax {
       }
 
       lazy val enumDefs = values.toList.collect {
-        case Ident(TermName(name)) => enumInstance(-1, name)
+        case Ident(TermName(name)) => enumInstance(name, -1)
         //case Apply(Ident(TermName(name)), List(Literal(Constant(desc)))) => enumInstance(name, name)
         //case Apply(Ident(TermName(id)), List(Block(_))) => enumInstance(id, "blocky")
       }
@@ -75,14 +75,23 @@ package object scalax {
             )
         )
 
-      val stdConstructor =
-        DefDef(Modifiers(), nme.CONSTRUCTOR, List(), List(List()), TypeTree(), Block(List(Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), List())), Literal(Constant(()))))
+      // extends java.lang.Enum[<EnumClass>]
+      val extendsEnum =
+        AppliedTypeTree(Select(Select(Ident(TermName("java")), TermName("lang")), TypeName("Enum")), List(c.enclosingClass))
+
+      // new <EnumClass>(name: String, ordinal) invokes new java.lang.Enum(name, ordinal)
+      val enumConstructors =
+        List(
+          ValDef(Modifiers(PRIVATE | LOCAL /*| PARAMACCESSOR*/), TermName("name"), Ident(TypeName("String")), EmptyTree),
+          ValDef(Modifiers(PRIVATE | LOCAL /*| PARAMACCESSOR*/), TermName("ordinal"), Ident(TypeName("Int")), EmptyTree),
+          DefDef(Modifiers(), nme.CONSTRUCTOR, List(), List(List(ValDef(Modifiers(PARAM /*| PARAMACCESSOR*/), TermName("name"), Ident(TypeName("String")), EmptyTree), ValDef(Modifiers(PARAM /*| PARAMACCESSOR*/), TermName("ordinal"), Ident(TypeName("Int")), EmptyTree))), TypeTree(), Block(List(Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), List(Ident(TermName("name")), Ident(TermName("ordinal"))))), Literal(Constant(()))))
+        )
 
       val generatedCode = /* staticFields ++ privateStaticValuesField :: staticValuesMethod :: */ List(staticValueOfMethod)
 
       val Template(_, _, _ :: existingCode) = c.enclosingTemplate
 
-      Template(List(Ident(TypeName("AnyRef"))), emptyValDef, generatedCode ++ existingCode :+ stdConstructor)
+      Template(List(extendsEnum), emptyValDef, generatedCode ++ enumConstructors ++ existingCode)
     }
   }
 }
