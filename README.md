@@ -35,6 +35,12 @@ Support for
 
     trait HasName { def name: String }
 
+## Current Issues
+
+- How to make fields and methods static? (Setting the STATIC flag doesn't work.)
+- How to make the receiving class final?
+- How to create and inherit from a "real" scala.Enum trait when extending the scala.Enum type macro?
+
 ## License
 
     This software is licensed under the Apache 2 license, quoted below.
