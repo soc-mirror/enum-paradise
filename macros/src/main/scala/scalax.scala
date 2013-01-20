@@ -13,6 +13,16 @@ package object scalax {
 
       val ClassDef(_, className, _, _) = c.enclosingClass
 
+      val STATIC = 1 << 23
+      val PARAMACCESSOR = 1 << 29
+      def setFlag(symbol: Symbol, flag: Long) {
+        val compilerSymbol = symbol.asInstanceOf[scala.tools.nsc.Global#Symbol]
+        compilerSymbol.setFlag(flag)
+      }
+      def printFlags(symbol: Symbol) {
+        println(symbol.asInstanceOf[scala.tools.nsc.Global#Symbol].flagString)
+      }
+
       case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
       def enumInstance(name: String, ordinal: Int) = {
@@ -24,8 +34,7 @@ package object scalax {
         new EnumDef(ordinal, name, tree)
       }
 
-
-      lazy val enumDefs = values.toList.collect {
+      val enumDefs = values.toList.collect {
         // <ENUM>
         case Ident(TermName(name)) => enumInstance(name, -1)
         // <ENUM>(<enumParam>, ...)
@@ -35,7 +44,7 @@ package object scalax {
 
       // <ENUM> ===> @static val <ENUM>: <EnumClass> = new <EnumClass>(ordinal = 0, name = "<ENUM>")
       /* error: scalax.Days does not take parameters */
-      lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
+      val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
         ValDef(
             mods = Modifiers(PRIVATE /*, STATIC */),
             name = TermName(enumDef.name),
@@ -43,9 +52,10 @@ package object scalax {
             rhs  = enumDef.tree
         )
       }
+      //staticEnumFields.foreach(enum => setFlag(enum.symbol, STATIC))
 
       // @static private val $VALUES: Array[<EnumClass>] = Array(<ENUM>, ...)
-      lazy val privateStaticValuesField: ValDef =
+      val privateStaticValuesField: ValDef =
         ValDef(
           mods = Modifiers(PRIVATE /*, STATIC */),
           name = TermName("$VALUES"),
@@ -53,9 +63,10 @@ package object scalax {
           // TODO: Currently Array()
           rhs  = Apply(Apply(TypeApply(Select(Select(Ident(TermName("scala")), TermName("Array")), TermName("apply")), List(Ident(className))), List()), List(Select(Ident(TermName("Predef")), TermName("implicitly"))))
         )
+      //setFlag(privateStaticValuesField.symbol, STATIC)
 
       // @static def values: Array[<EnumClass>] = $VALUES.clone()
-      lazy val staticValuesMethod: DefDef =
+      val staticValuesMethod: DefDef =
         DefDef(
           mods = Modifiers(/* STATIC */),
           name = TermName("values"),
@@ -66,10 +77,12 @@ package object scalax {
               tpt  = Select(Ident(TermName("scala")), TypeName("Array")),
               args = List(Ident(className))
             ),
-          rhs  = Apply(Select(Ident(TermName("$VALUES")), TermName("clone")), List()))
+          rhs  = Apply(Select(Ident(TermName("$VALUES")), TermName("clone")), List())
+        )
+      //setFlag(staticValuesMethod.symbol, STATIC)
 
       // @static def valueOf(name: String): <EnumClass> = Enum.valueOf(<EnumClass>, name)
-      lazy val staticValueOfMethod: DefDef =
+      val staticValueOfMethod: DefDef =
         DefDef(
           mods = Modifiers(/* STATIC */),
           name = TermName("valueOf"),
@@ -92,6 +105,7 @@ package object scalax {
               List(Literal(Constant(c.enclosingClass.tpe)), Ident(TermName("name")))
             )
         )
+      //setFlag(staticValueOfMethod.symbol, STATIC)
 
       // extends java.lang.Enum[<EnumClass>]
       val extendsEnum =
@@ -104,7 +118,10 @@ package object scalax {
       /* error: overriding method compareTo in class Enum of type (x$1: Foo)Int;
        * method compareTo in trait Ordered of type (that: Foo)Int cannot override final member */
       val withOrdered =
-        AppliedTypeTree(Select(Select(Ident(TermName("scala")), TermName("math")), TypeName("Ordered")), List(c.enclosingClass))
+        AppliedTypeTree(
+          tpt  = Select(Select(Ident(TermName("scala")), TermName("math")), TypeName("Ordered")),
+          args = List(Ident(className))
+        )
 
       // new <EnumClass>(name: String, ordinal) invokes new java.lang.Enum(name, ordinal)
       val enumConstructors =
