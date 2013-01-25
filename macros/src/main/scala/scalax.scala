@@ -28,7 +28,7 @@ package object scalax {
       def enumInstance(name: String, ordinal: Int) = {
         val tree =
           Apply(
-            New(Ident(className)),
+            Select(New(Ident(className)), nme.CONSTRUCTOR),
             List(Literal(Constant(name)), Literal(Constant(ordinal)))
           )
         new EnumDef(ordinal, name, tree)
@@ -61,7 +61,17 @@ package object scalax {
           name = TermName("$VALUES"),
           tpt  = AppliedTypeTree(Select(Ident(TermName("scala")), TypeName("Array")), List(Ident(className))),
           // TODO: Currently Array()
-          rhs  = Apply(Apply(TypeApply(Select(Select(Ident(TermName("scala")), TermName("Array")), TermName("apply")), List(Ident(className))), List(/* TODO */)), List(Select(Ident(TermName("Predef")), TermName("implicitly"))))
+          rhs  =
+            Apply(
+              Apply(
+                TypeApply(
+                  Select(Select(Ident(TermName("scala")), TermName("Array")), TermName("apply")),
+                  List(Ident(className))
+                ),
+                List(/* TODO */)
+              ),
+              List(Select(Ident(TermName("Predef")), TermName("implicitly")))
+            )
         )
       //setFlag(privateStaticValuesField.symbol, STATIC)
 
@@ -137,14 +147,14 @@ package object scalax {
                   )
                 )
               ),
-            tpt  = TypeTree(), //Ident(TypeName("Unit")),
+            tpt  = TypeTree(),
             rhs  =
               Block(
                 List(
-                  Apply(Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR), List(Ident(TermName("name")), Ident(TermName("ordinal"))))
+                  Apply(
+                    Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR),
+                    List(Ident(TermName("name")), Ident(TermName("ordinal"))))
                 ),
-                // Needs to be there, otherwise:
-                // scala.MatchError: Days.super.<init>(name, ordinal) (of class scala.reflect.internal.Trees$Apply)
                 Literal(Constant(()))
               )
           )
