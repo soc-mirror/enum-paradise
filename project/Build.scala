@@ -4,11 +4,11 @@ import Keys._
 object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.aloiscochard.enum-paradise",
-    version := "0.1-SNAPSHOT",
+    version := "0.2-SNAPSHOT",
     scalacOptions ++= Seq(),
-    scalaVersion := "2.11.0-SNAPSHOT",
-    scalaOrganization := "org.scala-lang.macro-paradise",
-    resolvers += Resolver.sonatypeRepo("snapshots")
+    scalaVersion := "2.10.2",
+    resolvers += Resolver.sonatypeRepo("snapshots"),
+    addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.10.2" % "2.0.0-SNAPSHOT")
   )
 }
 
@@ -17,16 +17,18 @@ object MyBuild extends Build {
 
   lazy val root: Project = Project(
     "root",
-    file("core"),
-    settings = buildSettings
+    file("."),
+    settings = buildSettings ++ Seq(
+      run <<= run in Compile in core
+    )
   ) aggregate(macros, core)
 
   lazy val macros: Project = Project(
     "macros",
     file("macros"),
     settings = buildSettings ++ Seq(
-      libraryDependencies <+= (scalaVersion)("org.scala-lang.macro-paradise" % "scala-reflect" % _),
-      libraryDependencies <+= (scalaVersion)("org.scala-lang.macro-paradise" % "scala-compiler" % _))
+      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
+      libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-compiler" % _))
   )
 
   lazy val core: Project = Project(

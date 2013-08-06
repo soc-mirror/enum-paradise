@@ -3,15 +3,15 @@ import scala.reflect.macros.Context
 
 package object scalax {
 
-  type Enum(values: _*) = macro Macros.enum
+  class Enum extends annotation.StaticAnnotation {
+    def macroTransform(annottees: Any*) = macro EnumMacro.impl
+  }
 
-  object Macros {
+  object EnumMacro {
 
-    def enum(c: Context)(values: c.Tree*): c.Tree = {
+    def impl(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
       import c.universe._
       import Flag._
-
-      val ClassDef(_, className, _, _) = c.enclosingClass
 
       val STATIC = 1 << 23
       val PARAMACCESSOR = 1 << 29
@@ -22,6 +22,9 @@ package object scalax {
       def printFlags(symbol: Symbol) {
         println(symbol.asInstanceOf[scala.tools.nsc.Global#Symbol].flagString)
       }
+
+      val List(Expr(classDef @ ClassDef(_, className, _, template))) = annottees
+      val Template(parents, self, body) = template
 
       case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
@@ -34,9 +37,9 @@ package object scalax {
         new EnumDef(ordinal, name, tree)
       }
 
-      lazy val enumDefs = values.zipWithIndex.toList.collect {
+      lazy val enumDefs = body.zipWithIndex.toList.collect {
         // <ENUM>
-        case (Ident(TermName(name)), index) => enumInstance(name, index)
+        case (Ident(termName: TermName), index)  => enumInstance(termName.encoded, index)
         // <ENUM>(<enumParam>, ...)
         // <ENUM> { <enumDef>, ... }
         // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
@@ -47,63 +50,63 @@ package object scalax {
       lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
         ValDef(
             mods = Modifiers(PRIVATE /*, STATIC */),
-            name = TermName(enumDef.name),
+            name = newTermName(enumDef.name),
             tpt  = Ident(className),
             rhs  = enumDef.tree
         )
       }
-      //staticEnumFields.foreach(enum => setFlag(enum.symbol, STATIC))
+      staticEnumFields.foreach(enum => setFlag(enum.symbol, STATIC))
 
       // @static private val $VALUES: Array[<EnumClass>] = Array(<ENUM>, ...)
       lazy val privateStaticValuesField: ValDef =
         ValDef(
           mods = Modifiers(PRIVATE | LOCAL /*, STATIC */),
-          name = TermName("$VALUES"),
-          tpt  = AppliedTypeTree(Select(Ident(TermName("scala")), TypeName("Array")), List(Ident(className))),
+          name = newTermName("$VALUES"),
+          tpt  = AppliedTypeTree(Select(Ident(newTermName("scala")), newTypeName("Array")), List(Ident(className))),
           // TODO: Currently Array()
           rhs  =
             Apply(
               Apply(
                 TypeApply(
-                  Select(Select(Ident(TermName("scala")), TermName("Array")), TermName("apply")),
+                  Select(Select(Ident(newTermName("scala")), newTermName("Array")), newTermName("apply")),
                   List(Ident(className))
                 ),
                 List(/* TODO */)
               ),
-              List(Select(Ident(TermName("Predef")), TermName("implicitly")))
+              List(Select(Ident(newTermName("Predef")), newTermName("implicitly")))
             )
         )
-      //setFlag(privateStaticValuesField.symbol, STATIC)
+      setFlag(privateStaticValuesField.symbol, STATIC)
 
       // @static def values: Array[<EnumClass>] = $VALUES.clone()
       lazy val staticValuesMethod: DefDef =
         DefDef(
           mods = Modifiers(/* STATIC */),
-          name = TermName("values"),
+          name = newTermName("values"),
           tparams  = List(),
           vparamss = List(),
           tpt  =
             AppliedTypeTree(
-              tpt  = Select(Ident(TermName("scala")), TypeName("Array")),
+              tpt  = Select(Ident(newTermName("scala")), newTypeName("Array")),
               args = List(Ident(className))
             ),
-          rhs  = Apply(Select(Ident(TermName("$VALUES")), TermName("clone")), List())
+          rhs  = Apply(Select(Ident(newTermName("$VALUES")), newTermName("clone")), List())
         )
-      //setFlag(staticValuesMethod.symbol, STATIC)
+      setFlag(staticValuesMethod.symbol, STATIC)
 
       // @static def valueOf(name: String): <EnumClass> = Enum.valueOf(<EnumClass>, name)
       lazy val staticValueOfMethod: DefDef =
         DefDef(
           mods = Modifiers(/* STATIC */),
-          name = TermName("valueOf"),
+          name = newTermName("valueOf"),
           tparams = List(),
           vparamss =
             List(
               List(
                 ValDef(
                   mods = Modifiers(PARAM),
-                  name = TermName("name"),
-                  tpt  = Ident(TypeName("String")),
+                  name = newTermName("name"),
+                  tpt  = Ident(newTypeName("String")),
                   rhs  = EmptyTree
                 )
               )
@@ -111,16 +114,16 @@ package object scalax {
           tpt = Ident(className),
           rhs =
             Apply(
-              Select(Select(Select(Ident(TermName("java")), TermName("lang")), TermName("Enum")), TermName("valueOf")),
-              List(TypeApply(Ident(TermName("classOf")),List(Ident(className))), Ident(TermName("name")))
+              Select(Select(Select(Ident(newTermName("java")), newTermName("lang")), newTermName("Enum")), newTermName("valueOf")),
+              List(TypeApply(Ident(newTermName("classOf")),List(Ident(className))), Ident(newTermName("name")))
             )
         )
-      //setFlag(staticValueOfMethod.symbol, STATIC)
+      setFlag(staticValueOfMethod.symbol, STATIC)
 
       // extends java.lang.Enum[<EnumClass>]
       lazy val extendsEnum =
         AppliedTypeTree(
-          tpt  = Select(Select(Ident(TermName("java")), TermName("lang")), TypeName("Enum")),
+          tpt  = Select(Select(Ident(newTermName("java")), newTermName("lang")), newTypeName("Enum")),
           args = List(Ident(className))
         )
 
@@ -135,14 +138,14 @@ package object scalax {
                 List(
                   ValDef(
                     mods = Modifiers(PARAM),
-                    name = TermName("name"),
-                    tpt  = Ident(TypeName("String")),
+                    name = newTermName("name"),
+                    tpt  = Ident(newTypeName("String")),
                     rhs  = EmptyTree
                   ),
                   ValDef(
                     mods = Modifiers(PARAM),
-                    name = TermName("ordinal"),
-                    tpt  = Ident(TypeName("Int")),
+                    name = newTermName("ordinal"),
+                    tpt  = Ident(newTypeName("Int")),
                     rhs  = EmptyTree
                   )
                 )
@@ -153,19 +156,21 @@ package object scalax {
                 List(
                   Apply(
                     Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR),
-                    List(Ident(TermName("name")), Ident(TermName("ordinal"))))
+                    List(Ident(newTermName("name")), Ident(newTermName("ordinal"))))
                 ),
                 Literal(Constant(()))
               )
           )
 
-      val generatedCode = enumConstructor :: staticEnumFields ++ (privateStaticValuesField :: staticValuesMethod :: staticValueOfMethod :: Nil)
+      val generatedCode: List[Tree] = enumConstructor :: staticEnumFields ++ (privateStaticValuesField :: staticValuesMethod :: staticValueOfMethod :: Nil)
 
-      val Template(_, _, _ :: existingCode) = c.enclosingTemplate
+      val newTemplate = Template(List(extendsEnum), template.self, generatedCode)
 
-      val template = Template(List(extendsEnum), emptyValDef, generatedCode ++ existingCode)
-      println(show(template))
-      template
+      val newClassDef = ClassDef(classDef.mods, classDef.name, classDef.tparams, newTemplate)
+
+      println(show(newClassDef))
+
+      c.Expr[Any](newClassDef)
     }
   }
 }
