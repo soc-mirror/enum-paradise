@@ -4,7 +4,16 @@ Scala enumeration implementation using type macros provided by [Macro Paradise](
 
 ## Usage
 
-    class Days extends Enum(Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday)
+    @Enum
+    class Days {
+      Monday
+      Tuesday
+      Wednesday
+      Thursday
+      Friday
+      Saturday
+      Sunday
+    }
     Days.Monday
     Days.values // Array(Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday): Array[Days]
     Days.valueOf("Sunday") // Sunday: Days
@@ -20,15 +29,16 @@ Support for
 
 <!-- -->
 
-    class Days(val inGerman: String) /* 1. */ extends Enum with HasName /* 4. */ (
-      Monday("Montag"),
-      Tuesday("Dienstag"),
-      Wednesday("Mittwoch"),
-      Thursday("Donnerstag"),
-      Friday("Freitag"),
+    @Enum
+    class Days(val inGerman: String) /* 1. */ extends HasName /* 4. */ {
+      Monday("Montag")
+      Tuesday("Dienstag")
+      Wednesday("Mittwoch")
+      Thursday("Donnerstag")
+      Friday("Freitag")
       Saturday("Samstag") { override def workingDay: Boolean = false }, // 3.
       Sunday("Sonntag") { override def workingDay: Boolean = false }
-    ) {
+
       def abbreviation = name take 3 // 2.
       def workingDay: Boolean = true // 3.
     }
@@ -37,9 +47,7 @@ Support for
 
 ## Current Issues
 
-- How to make fields and methods static? (Setting the STATIC flag doesn't work.)
-- How to make the receiving class final?
-- How to create and inherit from a "real" scala.Enum trait when extending the scala.Enum type macro?
+- How to add the ENUM flag to the enum class (which is required by the JVM)?
 
 ## License
 
