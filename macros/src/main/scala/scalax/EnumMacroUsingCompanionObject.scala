@@ -17,17 +17,12 @@ object EnumMacroUsingCompanionObject {
 
     case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
-    def enumInstance(name: String, ordinal: Int): EnumDef = {
-      val tree =
-        Apply(
-          Select(New(Ident(className)), nme.CONSTRUCTOR),
-          List(Literal(Constant(name)), Literal(Constant(ordinal))))
-      new EnumDef(ordinal, name, tree)
-    }
+    def enumInstance(ordinal: Int, name: String): EnumDef =
+      EnumDef(ordinal, name, q"new $className($name, $ordinal)")
 
     lazy val enumDefs: List[EnumDef] = body.zipWithIndex.toList.collect {
       // <ENUM>
-      case (Ident(termName: TermName), index) => enumInstance(termName.encoded, index)
+      case (Ident(termName: TermName), index) => enumInstance(index, termName.encoded)
       // <ENUM>(<enumParam>, ...)
       // <ENUM> { <enumDef>, ... }
       // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
@@ -44,103 +39,31 @@ object EnumMacroUsingCompanionObject {
         rhs = enumDef.tree)
     }
 
+    lazy val arrayValues = enumDefs.map(d => enumIdent(d))
+
     // private val $VALUES: Array[<EnumClass>] = Array(<ENUM>, ...)
     lazy val staticValuesField: ValDef =
-      ValDef(
-        mods = Modifiers(PRIVATE | LOCAL),
-        name = newTermName("$VALUES"),
-        tpt = AppliedTypeTree(Select(Ident(newTermName("scala")), newTypeName("Array")), List(Ident(className))),
-        rhs =
-          Apply(
-            Apply(
-              TypeApply(
-                Select(Select(Ident(newTermName("scala")), newTermName("Array")), newTermName("apply")),
-                List(Ident(className))),
-              List(enumDefs.map(d => enumIdent(d)): _*)),
-            List(Select(Ident(newTermName("Predef")), newTermName("implicitly")))))
+      q"private[this] val $$VALUES: Array[$className] = Array[$className](..$arrayValues)"
 
     // def values: Array[<EnumClass>] = $VALUES.clone()
     lazy val staticValuesMethod: DefDef =
-      DefDef(
-        mods = Modifiers(),
-        name = newTermName("values"),
-        tparams = List(),
-        vparamss = List(),
-        tpt =
-          AppliedTypeTree(
-            tpt = Select(Ident(newTermName("scala")), newTypeName("Array")),
-            args = List(Ident(className))),
-        rhs = Apply(Select(Ident(newTermName("$VALUES")), newTermName("clone")), List()))
+      q"def values: Array[$className] = $$VALUES.clone()"
 
     // def valueOf(name: String): <EnumClass> = Enum.valueOf(<EnumClass>, name)
     lazy val staticValueOfMethod: DefDef =
-      DefDef(
-        mods = Modifiers(),
-        name = newTermName("valueOf"),
-        tparams = List(),
-        vparamss =
-          List(
-            List(
-              ValDef(
-                mods = Modifiers(PARAM),
-                name = newTermName("name"),
-                tpt = Ident(newTypeName("String")),
-                rhs = EmptyTree))),
-        tpt = Ident(className),
-        rhs =
-          Apply(
-            Select(Select(Select(Ident(newTermName("java")), newTermName("lang")), newTermName("Enum")), newTermName("valueOf")),
-            List(TypeApply(Ident(newTermName("classOf")), List(Ident(className))), Ident(newTermName("name")))))
+      q"def valueOf(name: String): $className = Enum.valueOf(classOf[$className], name)"
 
     // java.lang.Enum[<EnumClass>]
     lazy val javaLangEnumType =
-      AppliedTypeTree(
-        tpt = Select(Select(Ident(newTermName("java")), newTermName("lang")), newTypeName("Enum")),
-        args = List(Ident(className)))
+      tq"""java.lang.Enum[$className]"""
 
-    // def <init>(name: String, ordinal) = super.<init>(name, ordinal)
+    // def <init>(name: String, ordinal: Int) = super.<init>(name, ordinal)
     lazy val classConstructor =
-      DefDef(
-        mods = Modifiers(PRIVATE | FINAL),
-        name = nme.CONSTRUCTOR,
-        tparams = List(),
-        vparamss =
-          List(
-            List(
-              ValDef(
-                mods = Modifiers(PARAM),
-                name = newTermName("name"),
-                tpt = Ident(newTypeName("String")),
-                rhs = EmptyTree),
-              ValDef(
-                mods = Modifiers(PARAM),
-                name = newTermName("ordinal"),
-                tpt = Ident(newTypeName("Int")),
-                rhs = EmptyTree))),
-        tpt = TypeTree(),
-        rhs =
-          Block(
-            List(
-              Apply(
-                Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR),
-                List(Ident(newTermName("name")), Ident(newTermName("ordinal"))))),
-            Literal(Constant(()))))
+      q"""private def ${nme.CONSTRUCTOR}(name: String, ordinal: Int) = { super.${nme.CONSTRUCTOR}(name, ordinal); () }"""
 
     // def <init>() = super.<init>()
     lazy val objectConstructor =
-      DefDef(
-        mods = Modifiers(PRIVATE),
-        name = nme.CONSTRUCTOR,
-        tparams = List(),
-        vparamss = List(),
-        tpt = TypeTree(),
-        rhs =
-          Block(
-            List(
-              Apply(
-                Select(Super(This(tpnme.EMPTY), tpnme.EMPTY), nme.CONSTRUCTOR),
-                List())),
-            Literal(Constant(()))))
+      q"""private def ${nme.CONSTRUCTOR}() = { super.${nme.CONSTRUCTOR}(); () }"""
 
     val newClassBody: List[Tree] = classConstructor :: Nil
     val newClassTemplate = Template(List(javaLangEnumType), template.self, newClassBody)
