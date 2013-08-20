@@ -7,20 +7,34 @@ object EnumMacroUsingCompanionObject {
     import c.universe._
     import Flag._
 
-    val EnumValue = 1L << 48
-    val ENUM = EnumValue.asInstanceOf[FlagSet]
+    val EnumValue   = 1L << 48
+    val ENUM        = EnumValue.asInstanceOf[FlagSet]
     val StaticValue = 1L << 23
-    val STATIC = StaticValue.asInstanceOf[FlagSet]
+    val STATIC      = StaticValue.asInstanceOf[FlagSet]
+    val StableValue = 1L << 22
+    val STABLE      = StableValue.asInstanceOf[FlagSet]
+    val JavaValue   = 1L << 20
+    val JAVA        = JavaValue.asInstanceOf[FlagSet]
 
     val List(Expr(classDef @ ClassDef(_, className, _, template))) = annottees
     val Template(parents, self, body) = template
 
     case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
+    def isEnumItem(item: Tree) = item match {
+      case Ident(termName: TermName) => true
+      case _ => false
+    }
+    val (enumItems, restOfBody) = body dropWhile(_.isDef) span isEnumItem
+
+    println(body)
+    println(enumItems)
+    println(restOfBody)
+
     def enumInstance(ordinal: Int, name: String): EnumDef =
       EnumDef(ordinal, name, q"new $className($name, $ordinal)")
 
-    lazy val enumDefs: List[EnumDef] = body.zipWithIndex.toList.collect {
+    lazy val enumDefs: List[EnumDef] = enumItems.zipWithIndex.toList.collect {
       // <ENUM>
       case (Ident(termName: TermName), index) => enumInstance(index, termName.encoded)
       // <ENUM>(<enumParam>, ...)
@@ -33,7 +47,7 @@ object EnumMacroUsingCompanionObject {
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
     lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
       ValDef(
-        mods = Modifiers(ENUM),
+        mods = Modifiers(STABLE | STATIC | JAVA),
         name = newTermName(enumDef.name),
         tpt = Ident(className),
         rhs = enumDef.tree)
@@ -65,7 +79,7 @@ object EnumMacroUsingCompanionObject {
     lazy val objectConstructor =
       q"""private def ${nme.CONSTRUCTOR}() = { super.${nme.CONSTRUCTOR}(); () }"""
 
-    val newClassBody: List[Tree] = classConstructor :: Nil
+    val newClassBody: List[Tree] = classConstructor :: restOfBody
     val newClassTemplate = Template(List(javaLangEnumType), template.self, newClassBody)
     val newClassMods = Modifiers(classDef.mods.flags | ENUM)
     val newClassDef = ClassDef(newClassMods, classDef.name, classDef.tparams, newClassTemplate)

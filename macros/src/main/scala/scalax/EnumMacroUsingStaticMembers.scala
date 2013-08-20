@@ -7,12 +7,18 @@ object EnumMacroUsingStaticMembers {
     import c.universe._
     import Flag._
 
-    val EnumValue = 1L << 48
-    val ENUM = EnumValue.asInstanceOf[FlagSet]
-    val StaticValue = 1L << 23
-    val STATIC = StaticValue.asInstanceOf[FlagSet]
-    val JavaValue = 1L << 20
-    val JAVA = JavaValue.asInstanceOf[FlagSet]
+    val EnumValue         = 1L << 48
+    val ENUM              = EnumValue.asInstanceOf[FlagSet]
+    val ArtifactValue     = 1L << 46
+    val ARTIFACT          = ArtifactValue.asInstanceOf[FlagSet]
+    val CaseAccessorValue = 1L << 24
+    val CASEACCESSOR      = CaseAccessorValue.asInstanceOf[FlagSet]
+    val StaticValue       = 1L << 23
+    val STATIC            = StaticValue.asInstanceOf[FlagSet]
+    val StableValue       = 1L << 22
+    val STABLE            = StableValue.asInstanceOf[FlagSet]
+    val JavaValue         = 1L << 20
+    val JAVA              = JavaValue.asInstanceOf[FlagSet]
 
     val List(Expr(classDef @ ClassDef(_, className, _, template))) = annottees
     val Template(parents, self, body) = template
@@ -40,7 +46,7 @@ object EnumMacroUsingStaticMembers {
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
     lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
       ValDef(
-        mods = Modifiers(ENUM | STATIC | JAVA),
+        mods = Modifiers(ENUM | STATIC | JAVA | STABLE),
         name = newTermName(enumDef.name),
         tpt = Ident(className),
         rhs = enumDef.tree)
