@@ -3,7 +3,7 @@ package scalax
 //object ScalaDayConsumer extends App {
 //  val mon = Day.Monday
 //  val tue = Day.Tuesday
-//  val days = Day.values.toList
+////  val days = Day.values.toList
 //  def monday(day: Day) = day match {
 //    case Day.Monday => "Monday!"
 //  }
@@ -18,8 +18,8 @@ package scalax
 //  println(s"Day.Monday == Day.Tuesday: \t\t ${mon == tue}")
 //  println(s"Day.Monday == Day.Monday: \t\t ${mon == mon}")
 //  println(s"Day.Monday.getDeclaringClass: \t\t ${mon.getDeclaringClass}")
-//  println(s"Day.values: \t\t\t\t $days")
-//  println(s"""Day valueOf "Wednesday": \t\t ${Day valueOf "Wednesday"}""")
+////  println(s"Day.values: \t\t\t\t $days")
+////  println(s"""Day valueOf "Wednesday": \t\t ${Day valueOf "Wednesday"}""")
 //  println(s"""Enum.valueOf(classOf[Day], "Wednesday"): ${Enum.valueOf(classOf[Day], "Wednesday")}""")
 //  println(s"monday(Days.Monday): \t\t\t ${monday(mon)}")
 //}
