@@ -5,7 +5,6 @@ import scala.reflect.macros.Context
 object EnumMacroUsingCompanionObject {
   def apply(c: Context)(annottees: c.Expr[Any]*): c.Expr[Any] = {
     import c.universe._
-    import Flag._
 
     val EnumValue   = 1L << 48
     val ENUM        = EnumValue.asInstanceOf[FlagSet]
@@ -42,13 +41,13 @@ object EnumMacroUsingCompanionObject {
       // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
     }
 
-    def enumIdent(enumDef: EnumDef) = Select(Ident(className.toTermName), newTermName(enumDef.name))
+    def enumIdent(enumDef: EnumDef) = Select(Ident(className.toTermName), TermName(enumDef.name))
 
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
     lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
       ValDef(
-        mods = Modifiers(STABLE | STATIC | JAVA),
-        name = newTermName(enumDef.name),
+        mods = Modifiers(STABLE | STATIC | JAVA | ENUM),
+        name = TermName(enumDef.name),
         tpt = Ident(className),
         rhs = enumDef.tree)
     }

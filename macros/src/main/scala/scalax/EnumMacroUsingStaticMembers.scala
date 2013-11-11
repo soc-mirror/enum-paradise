@@ -9,16 +9,12 @@ object EnumMacroUsingStaticMembers {
 
     val EnumValue         = 1L << 48
     val ENUM              = EnumValue.asInstanceOf[FlagSet]
-    val ArtifactValue     = 1L << 46
-    val ARTIFACT          = ArtifactValue.asInstanceOf[FlagSet]
-    val CaseAccessorValue = 1L << 24
-    val CASEACCESSOR      = CaseAccessorValue.asInstanceOf[FlagSet]
     val StaticValue       = 1L << 23
     val STATIC            = StaticValue.asInstanceOf[FlagSet]
     val StableValue       = 1L << 22
     val STABLE            = StableValue.asInstanceOf[FlagSet]
-    val JavaValue         = 1L << 20
-    val JAVA              = JavaValue.asInstanceOf[FlagSet]
+    val JavaValue   = 1L << 20
+    val JAVA        = JavaValue.asInstanceOf[FlagSet]
 
     val List(Expr(classDef @ ClassDef(_, className, _, template))) = annottees
     val Template(parents, self, body) = template
@@ -36,13 +32,13 @@ object EnumMacroUsingStaticMembers {
       // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
     }
 
-    def enumIdent(enumDef: EnumDef) = Ident(newTermName(enumDef.name))
+    def enumIdent(enumDef: EnumDef) = Ident(TermName(enumDef.name))
 
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
     lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
       ValDef(
-        mods = Modifiers(ENUM | STATIC | STABLE),
-        name = newTermName(enumDef.name),
+        mods = Modifiers(ENUM | STATIC | STABLE | JAVA),
+        name = TermName(enumDef.name),
         tpt = Ident(className),
         rhs = enumDef.tree)
     }
@@ -51,49 +47,49 @@ object EnumMacroUsingStaticMembers {
     lazy val staticValuesField: ValDef =
       ValDef(
         mods = Modifiers(PRIVATE | LOCAL | STATIC),
-        name = newTermName("$VALUES"),
-        tpt = AppliedTypeTree(Select(Ident(newTermName("scala")), newTypeName("Array")), List(Ident(className))),
+        name = TermName("$VALUES"),
+        tpt = AppliedTypeTree(Select(Ident(TermName("scala")), TypeName("Array")), List(Ident(className))),
         rhs =
           Apply(
             Apply(
               TypeApply(
-                Select(Select(Ident(newTermName("scala")), newTermName("Array")), newTermName("apply")),
+                Select(Select(Ident(TermName("scala")), TermName("Array")), TermName("apply")),
                 List(Ident(className))),
               List(enumDefs.map(d => enumIdent(d)): _*)),
-            List(Select(Ident(newTermName("Predef")), newTermName("implicitly")))))
+            List(Select(Ident(TermName("Predef")), TermName("implicitly")))))
 
     // def values: Array[<EnumClass>] = $VALUES.clone()
     lazy val staticValuesMethod: DefDef =
       DefDef(
         mods = Modifiers(STATIC),
-        name = newTermName("values"),
+        name = TermName("values"),
         tparams = List(),
         vparamss = List(),
         tpt =
           AppliedTypeTree(
-            tpt = Select(Ident(newTermName("scala")), newTypeName("Array")),
+            tpt = Select(Ident(TermName("scala")), TypeName("Array")),
             args = List(Ident(className))),
-        rhs = Apply(Select(Ident(newTermName("$VALUES")), newTermName("clone")), List()))
+        rhs = Apply(Select(Ident(TermName("$VALUES")), TermName("clone")), List()))
 
     // def valueOf(name: String): <EnumClass> = Enum.valueOf(<EnumClass>, name)
     lazy val staticValueOfMethod: DefDef =
       DefDef(
         mods = Modifiers(STATIC),
-        name = newTermName("valueOf"),
+        name = TermName("valueOf"),
         tparams = List(),
         vparamss =
           List(
             List(
               ValDef(
                 mods = Modifiers(PARAM),
-                name = newTermName("name"),
-                tpt = Ident(newTypeName("String")),
+                name = TermName("name"),
+                tpt = Ident(TypeName("String")),
                 rhs = EmptyTree))),
         tpt = Ident(className),
         rhs =
           Apply(
-            Select(Select(Select(Ident(newTermName("java")), newTermName("lang")), newTermName("Enum")), newTermName("valueOf")),
-            List(TypeApply(Ident(newTermName("classOf")), List(Ident(className))), Ident(newTermName("name")))))
+            Select(Select(Select(Ident(TermName("java")), TermName("lang")), TermName("Enum")), TermName("valueOf")),
+            List(TypeApply(Ident(TermName("classOf")), List(Ident(className))), Ident(TermName("name")))))
 
     // java.lang.Enum[<EnumClass>]
     lazy val javaLangEnumType =
@@ -101,7 +97,7 @@ object EnumMacroUsingStaticMembers {
 
     // def <init>(name: String, ordinal: Int) = super.<init>(name, ordinal)
     lazy val classConstructor =
-      q"""private def ${nme.CONSTRUCTOR}(name: String, ordinal: Int) = { super.${nme.CONSTRUCTOR}(name, ordinal); () }"""
+      q"""private def ${nme.CONSTRUCTOR}(nameX: String, ordinal: Int) = { super.${nme.CONSTRUCTOR}(nameX, ordinal); () }"""
 
     // def <init>() = super.<init>()
     lazy val objectConstructor =
@@ -116,7 +112,7 @@ object EnumMacroUsingStaticMembers {
 //      enumDefs.map { enumDef =>
 //      DefDef(
 //        mods = Modifiers(STABLE),
-//        name = newTermName(enumDef.name),
+//        name = TermName(enumDef.name),
 //        tparams = List(),
 //        vparamss = List(),
 //        tpt = Ident(className),

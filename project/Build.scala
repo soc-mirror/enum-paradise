@@ -4,11 +4,11 @@ import Keys._
 object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.aloiscochard.enum-paradise",
-    version := "0.2-SNAPSHOT",
+    version := "0.3-SNAPSHOT",
     scalacOptions ++= Seq("-deprecation", "-feature", "-Xlint"),
-    scalaVersion := "2.10.2",
+    scalaVersion := "2.11.0-SNAPSHOT",
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.10.3-RC1" % "2.0.0-SNAPSHOT")
+    addCompilerPlugin("org.scala-lang.plugins" % "macro-paradise_2.11.0-SNAPSHOT" % "2.0.0-SNAPSHOT")
   )
 }
 
