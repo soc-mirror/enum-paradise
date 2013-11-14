@@ -7,17 +7,22 @@ object EnumMacroUsingStaticMembers {
     import c.universe._
     import Flag._
 
-    val EnumValue         = 1L << 48
-    val ENUM              = EnumValue.asInstanceOf[FlagSet]
-    val StaticValue       = 1L << 23
-    val STATIC            = StaticValue.asInstanceOf[FlagSet]
-    val StableValue       = 1L << 22
-    val STABLE            = StableValue.asInstanceOf[FlagSet]
+    val EnumValue   = 1L << 48
+    val ENUM        = EnumValue.asInstanceOf[FlagSet]
+    val StaticValue = 1L << 23
+    val STATIC      = StaticValue.asInstanceOf[FlagSet]
+    val StableValue = 1L << 22
+    val STABLE      = StableValue.asInstanceOf[FlagSet]
     val JavaValue   = 1L << 20
     val JAVA        = JavaValue.asInstanceOf[FlagSet]
 
     val List(Expr(classDef @ ClassDef(_, className, _, template))) = annottees
     val Template(parents, self, body) = template
+
+    // java.lang.Enum[<EnumClass>]
+    lazy val javaLangEnumType = tq"""java.lang.Enum[$className]"""
+    lazy val StringType       = tq"java.lang.String"
+    lazy val IntType          = tq"scala.Int"
 
     case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
@@ -37,7 +42,7 @@ object EnumMacroUsingStaticMembers {
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
     lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
       ValDef(
-        mods = Modifiers(ENUM | STATIC | STABLE | JAVA),
+        mods = Modifiers(ENUM | STATIC | STABLE),
         name = TermName(enumDef.name),
         tpt = Ident(className),
         rhs = enumDef.tree)
@@ -83,7 +88,7 @@ object EnumMacroUsingStaticMembers {
               ValDef(
                 mods = Modifiers(PARAM),
                 name = TermName("name"),
-                tpt = Ident(TypeName("String")),
+                tpt = StringType,
                 rhs = EmptyTree))),
         tpt = Ident(className),
         rhs =
@@ -91,50 +96,25 @@ object EnumMacroUsingStaticMembers {
             Select(Select(Select(Ident(TermName("java")), TermName("lang")), TermName("Enum")), TermName("valueOf")),
             List(TypeApply(Ident(TermName("classOf")), List(Ident(className))), Ident(TermName("name")))))
 
-    // java.lang.Enum[<EnumClass>]
-    lazy val javaLangEnumType =
-      tq"""java.lang.Enum[$className]"""
-
     lazy val classFields = {
       import Flag._
-      val PARAMACCESSOR = (1 << 29).asInstanceOf[Long].asInstanceOf[FlagSet]
-      val nameXAccessor = ValDef(Modifiers(PRIVATE | LOCAL | PARAMACCESSOR), newTermName("nameX"), Ident(newTypeName("String")), EmptyTree)
-      val ordinalAccessor = ValDef(Modifiers(PRIVATE | LOCAL | PARAMACCESSOR), newTermName("ordinal"), Ident(newTypeName("Int")), EmptyTree)
-      List(nameXAccessor, ordinalAccessor)
+      val PARAMACCESSOR = (1L << 29).asInstanceOf[FlagSet]
+      val nameAccessor = ValDef(Modifiers(PRIVATE | LOCAL | PARAMACCESSOR), TermName("name"), StringType, EmptyTree)
+      val ordinalAccessor = ValDef(Modifiers(PRIVATE | LOCAL | PARAMACCESSOR), TermName("ordinal"), IntType, EmptyTree)
+      List(nameAccessor, ordinalAccessor)
     }
 
     // def <init>(name: String, ordinal: Int) = super.<init>(name, ordinal)
     lazy val classConstructor =
-      q"""private def ${nme.CONSTRUCTOR}(nameX: String, ordinal: Int) = { super.${nme.CONSTRUCTOR}(nameX, ordinal); () }"""
-
-    // def <init>() = super.<init>()
-    lazy val objectConstructor =
-      q"""private def ${nme.CONSTRUCTOR}() = { super.${nme.CONSTRUCTOR}(); () }"""
+      q"""private def ${nme.CONSTRUCTOR}(name: String, ordinal: Int) = { super.${nme.CONSTRUCTOR}(name, ordinal); () }"""
 
     val newClassBody: List[Tree] = (classFields :+ classConstructor) ++ (staticEnumFields ++ (staticValuesField :: staticValuesMethod :: staticValueOfMethod :: Nil))
     val newClassTemplate = Template(List(javaLangEnumType), template.self, newClassBody)
     val newClassMods = Modifiers(classDef.mods.flags | FINAL | ENUM)
     val newClassDef = ClassDef(newClassMods, classDef.name, classDef.tparams, newClassTemplate)
 
-    lazy val staticForwarders: List[Tree] = Nil
-//      enumDefs.map { enumDef =>
-//      DefDef(
-//        mods = Modifiers(STABLE),
-//        name = TermName(enumDef.name),
-//        tparams = List(),
-//        vparamss = List(),
-//        tpt = Ident(className),
-//        rhs = Select(Ident(classDef.linkedClassOfClass.name), enumDef.name)
-//      )
-//    }
-
-    val newObjectBody: List[Tree] = objectConstructor :: staticForwarders
-    val newObjectTemplate = Template(Nil, template.self, newObjectBody)
-    val newObjectDef = ModuleDef(Modifiers(), classDef.name.toTermName, newObjectTemplate)
-
     println(show(newClassDef))
-    println(show(newObjectDef))
 
-    c.Expr[Any](Block(List(newClassDef, newObjectDef), Literal(Constant(()))))
+    c.Expr[Any](newClassDef)
   }
 }
