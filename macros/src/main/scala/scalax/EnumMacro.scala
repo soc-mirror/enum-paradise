@@ -22,8 +22,21 @@ object EnumMacro {
 
     case class EnumDef(ordinal: Int, name: String, tree: Tree)
 
-    def enumInstance(name: String, ordinal: Int, args: List[Tree]): EnumDef =
-      EnumDef(ordinal, name, q"new $className($name, $ordinal, ..$args)")
+    def enumInstance(name: String, ordinal: Int, args: List[Tree], body: List[Tree]): EnumDef = {
+      val tree =
+        if (body.isEmpty)
+          q"new $className($name, $ordinal, ..$args)"
+        else {
+          val bodyWithOverrides = body.map(tree => addOverrideModifier(tree))
+          q"new $className($name, $ordinal, ..$args) {..$bodyWithOverrides}"
+        }
+      EnumDef(ordinal, name, tree)
+    }
+
+    def addOverrideModifier(tree: Tree) = tree match {
+      case DefDef(mods, name, tparams, vparamss, tpt, rhs) => DefDef(Modifiers(mods.flags | OVERRIDE), name, tparams, vparamss, tpt, rhs)
+    }
+
 
     lazy val constructorParams: List[ValDef] = {
       val result = body collectFirst {
@@ -34,10 +47,13 @@ object EnumMacro {
 
     lazy val enumDefs: List[EnumDef] = body.zipWithIndex.toList.collect {
       // <ENUM>
-      case (Ident(termName: TermName), index) => enumInstance(termName.encoded, index, Nil)
-      // <ENUM>(<enumParam>, ...)
-      case (Apply(Ident(termName: TermName), args), index) => enumInstance(termName.encoded, index, args)
+      case (Ident(termName: TermName), index) => enumInstance(termName.encoded, index, Nil, Nil)
       // <ENUM> { <enumDef>, ... }
+      case (Apply(Ident(termName: TermName), List(Block(body, Literal(Constant(()))))), index) =>
+        enumInstance(termName.encoded, index, Nil, body)
+      // <ENUM>(<enumParam>, ...)
+      case (Apply(Ident(termName: TermName), args), index) =>
+        enumInstance(termName.encoded, index, args, Nil)
       // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
     }
 
@@ -139,7 +155,7 @@ object EnumMacro {
 
     val newClassBody: List[Tree] = (instanceFields :+ instanceConstructor) ++ (staticEnumFields ++ (staticValuesField :: staticValuesMethod :: staticValueOfMethod :: Nil))
     val newClassTemplate = Template(EnumType :: parents.filterNot(_ equalsStructure AnyRefType), template.self, newClassBody ++ existingClassMethods)
-    val newClassMods = Modifiers(classDef.mods.flags | FINAL | ENUM)
+    val newClassMods = Modifiers(classDef.mods.flags | ENUM)
     val newClassDef = ClassDef(newClassMods, className, classDef.tparams, newClassTemplate)
 
         // def <init>() = super.<init>()
@@ -149,8 +165,8 @@ object EnumMacro {
     val newObjectTemplate = Template(Nil, template.self, newObjectBody)
     val newObjectDef = ModuleDef(Modifiers(), className.toTermName, newObjectTemplate)
 
-    println(show(newClassDef))
-    println(show(newObjectDef))
+    println(showCode(newClassDef))
+    println(showCode(newObjectDef))
 
     c.Expr[Any](Block(List(newClassDef, newObjectDef), Literal(Constant(()))))
   }

@@ -13,7 +13,9 @@ public class DayConstructorsConsumer {
         System.out.println(monday);
         System.out.println("Day.Monday.abbreviation()");
         System.out.println(monday.abbreviation());
+        System.out.println("Call method foo defined in Day");
         System.out.println(monday.foo());
+        System.out.println("Call method bar defined in Bar and mixed into Day");
         System.out.println(monday.bar());
     }
 }
