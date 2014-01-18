@@ -1,7 +1,7 @@
 package scalax;
 
 @DayAnnotation(bestDay = Day.Monday)
-public class JavaDayConsumer {
+public class DayConsumer {
     public static void main(String[] args) {
         System.out.println("Day.Monday");
         System.out.println(Day.Monday);

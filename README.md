@@ -18,14 +18,14 @@ Scala enumeration implementation using type macros provided by [Macro Paradise](
     Days.values // Array(Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday): Array[Days]
     Days.valueOf("Sunday") // Sunday: Days
 
-## Plans
+## Features
 
 Support for
 
-1. User-defined constructors
-2. User-defined methods
-3. User-defined overridden methods in enum items
-4. Adding/implementing traits
+1. User-defined constructors (implemented)
+2. User-defined methods (implemented)
+3. User-defined overridden methods in enum items (todo)
+4. Adding/implementing traits (implemented)
 
 <!-- -->
 
@@ -44,10 +44,6 @@ Support for
     }
 
     trait HasName { def name: String }
-
-## Current Issues
-
-- How to add the ENUM flag to the enum class (which is required by the JVM)?
 
 ## License
 
