@@ -1,6 +1,6 @@
-# Enum Paradise (WORK IN PROGRESS)
+# Enum Paradise [<img src="https://api.travis-ci.org/soc/enum-paradise.png"/>](https://travis-ci.org/soc/enum-paradise)
 
-Scala enumeration implementation using type macros provided by [Macro Paradise](http://docs.scala-lang.org/overviews/macros/paradise.html) intended to be a compatible with Java enums.
+A Scala enum implementation using type annotations provided by [Macro Paradise](http://docs.scala-lang.org/overviews/macros/paradise.html), intended to be interoperable and compatible with Java enums.
 
 ## Usage
 
@@ -44,6 +44,11 @@ Support for
     }
 
     trait HasName { def name: String }
+
+## Specification
+
+The SIP for Enums is work in progress and available [here](https://docs.google.com/document/d/1mIKml4sJzezL_-iDJMmcAKmavHb9axjYJos_7UMlWJ8).
+Please leave your comments!
 
 ## License
 
