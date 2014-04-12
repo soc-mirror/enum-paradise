@@ -4,11 +4,11 @@ import Keys._
 object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.aloiscochard.enum-paradise",
-    version := "0.5-SNAPSHOT",
+    version := "0.6-SNAPSHOT",
     scalacOptions ++= Seq("-deprecation", "-feature"),
-    scalaVersion := "2.11.0-SNAPSHOT",
+    scalaVersion := "2.11.0-RC4",
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    addCompilerPlugin("org.scalamacros" % "paradise" % "2.0.0-SNAPSHOT" cross CrossVersion.full)
+    addCompilerPlugin("org.scalamacros" %% "paradise" % "2.0.0-SNAPSHOT")
   )
 }
 

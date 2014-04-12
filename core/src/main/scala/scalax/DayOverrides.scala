@@ -1,17 +1,17 @@
 package scalax
 
-@enum
-class DayOverridesConcrete {
-  Monday
-  Tuesday
-  Wednesday
-  Thursday
-  Friday
-  Saturday {def isWeekend = true}
-  Sunday {def isWeekend = true}
-
-  def isWeekend: Boolean = false
-}
+//@enum
+//class DayOverridesConcrete {
+//  Monday
+//  Tuesday
+//  Wednesday
+//  Thursday
+//  Friday
+//  Saturday {def isWeekend = true}
+//  Sunday {def isWeekend = true}
+//
+//  def isWeekend: Boolean = false
+//}
 
 //@enum
 //class DayOverridesAbstract {

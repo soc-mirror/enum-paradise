@@ -40,20 +40,20 @@ object EnumMacro {
 
     lazy val constructorParams: List[ValDef] = {
       val result = body collectFirst {
-        case DefDef(_, nme.CONSTRUCTOR, _, List(paramList), _, _) => paramList
+        case DefDef(_, termNames.CONSTRUCTOR, _, List(paramList), _, _) => paramList
       }
       result.get
     }
 
     lazy val enumDefs: List[EnumDef] = body.zipWithIndex.toList.collect {
       // <ENUM>
-      case (Ident(termName: TermName), index) => enumInstance(termName.encoded, index, Nil, Nil)
+      case (Ident(termName: TermName), index) => enumInstance(termName.encodedName.toString, index, Nil, Nil)
       // <ENUM> { <enumDef>, ... }
       case (Apply(Ident(termName: TermName), List(Block(body, Literal(Constant(()))))), index) =>
-        enumInstance(termName.encoded, index, Nil, body)
+        enumInstance(termName.encodedName.toString, index, Nil, body)
       // <ENUM>(<enumParam>, ...)
       case (Apply(Ident(termName: TermName), args), index) =>
-        enumInstance(termName.encoded, index, args, Nil)
+        enumInstance(termName.encodedName.toString, index, args, Nil)
       // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
     }
 
@@ -146,12 +146,12 @@ object EnumMacro {
     }
 
     lazy val existingClassMethods = body.collect {
-      case defDef @ DefDef(_, name, _, _, _, _) if name != nme.CONSTRUCTOR => defDef
+      case defDef @ DefDef(_, name, _, _, _, _) if name != termNames.CONSTRUCTOR => defDef
     }
 
     // def <init>(name: String, ordinal: Int, <params>) = super.<init>(name, ordinal)
     lazy val instanceConstructor =
-      q"""private def ${nme.CONSTRUCTOR}(name: String, ordinal: Int, ..${constructorParams}) = { super.${nme.CONSTRUCTOR}(name, ordinal); () }"""
+      q"""private def ${termNames.CONSTRUCTOR}(name: String, ordinal: Int, ..${constructorParams}) = { super.${termNames.CONSTRUCTOR}(name, ordinal); () }"""
 
     val newClassBody: List[Tree] = (instanceFields :+ instanceConstructor) ++ (staticEnumFields ++ (staticValuesField :: staticValuesMethod :: staticValueOfMethod :: Nil))
     val newClassTemplate = Template(EnumType :: parents.filterNot(_ equalsStructure AnyRefType), template.self, newClassBody ++ existingClassMethods)
@@ -160,13 +160,18 @@ object EnumMacro {
 
         // def <init>() = super.<init>()
     lazy val objectConstructor =
-      q"""private def ${nme.CONSTRUCTOR}() = { super.${nme.CONSTRUCTOR}(); () }"""
+      q"""private def ${termNames.CONSTRUCTOR}() = { super.${termNames.CONSTRUCTOR}(); () }"""
     val newObjectBody: List[Tree] = objectConstructor :: unapplyMethod.toList
     val newObjectTemplate = Template(Nil, template.self, newObjectBody)
     val newObjectDef = ModuleDef(Modifiers(), className.toTermName, newObjectTemplate)
 
+    println("==================== CODE ====================")
     println(showCode(newClassDef))
     println(showCode(newObjectDef))
+
+    println("==================== TREE ====================")
+    println(show(newClassDef))
+    println(show(newObjectDef))
 
     c.Expr[Any](Block(List(newClassDef, newObjectDef), Literal(Constant(()))))
   }
