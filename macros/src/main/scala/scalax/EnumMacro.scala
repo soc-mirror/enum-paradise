@@ -57,7 +57,10 @@ object EnumMacro {
       // <ENUM>(<enumParam>, ...) { <enumDef>, ... }
     }
 
-    def enumIdent(enumDef: EnumDef) = Ident(TermName(enumDef.name))
+    def enumIdent(enumDef: EnumDef) = {
+      /*val ident = */Ident(TermName(enumDef.name))
+      /*q"$ident.asInstanceOf[$className]"*/
+    }
 
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
     lazy val staticEnumFields: List[ValDef] = enumDefs.map { enumDef =>
@@ -172,6 +175,10 @@ object EnumMacro {
     println("==================== TREE ====================")
     println(show(newClassDef))
     println(show(newObjectDef))
+  
+    println("==================== RAW  ====================")
+    println(showRaw(newClassDef))
+    println(showRaw(newObjectDef))
 
     c.Expr[Any](Block(List(newClassDef, newObjectDef), Literal(Constant(()))))
   }

@@ -4,11 +4,11 @@ import Keys._
 object BuildSettings {
   val buildSettings = Defaults.defaultSettings ++ Seq(
     organization := "com.github.aloiscochard.enum-paradise",
-    version := "0.6-SNAPSHOT",
+    version := "0.7-SNAPSHOT",
     scalacOptions ++= Seq("-deprecation", "-feature"),
-    scalaVersion := "2.11.0-RC4",
+    scalaVersion := "2.11.2",
     resolvers += Resolver.sonatypeRepo("snapshots"),
-    addCompilerPlugin("org.scalamacros" %% "paradise" % "2.0.0-SNAPSHOT")
+    addCompilerPlugin("org.scalamacros" % "paradise_2.11.2" % "2.1.0-M1")
   )
 }
 
@@ -24,7 +24,7 @@ object MyBuild extends Build {
   ) aggregate(macros, core)
 
   lazy val macros: Project = Project(
-    "macros",
+    "enums-macros",
     file("macros"),
     settings = buildSettings ++ Seq(
       libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
@@ -32,7 +32,7 @@ object MyBuild extends Build {
   )
 
   lazy val core: Project = Project(
-    "core",
+    "enums-core",
     file("core"),
     settings = buildSettings
   ) dependsOn(macros)
