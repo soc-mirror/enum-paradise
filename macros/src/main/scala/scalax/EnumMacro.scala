@@ -58,8 +58,18 @@ object EnumMacro {
     }
 
     def enumIdent(enumDef: EnumDef) = {
-      /*val ident = */Ident(TermName(enumDef.name))
-      /*q"$ident.asInstanceOf[$className]"*/
+      /* The `instanceOf[$className]` avoids
+           type mismatch;
+             found   : scalax.Day.type(Monday)
+             required: scalax.Day
+
+         but fails later with
+           scala.reflect.internal.Types$TypeError: assignment to non variable
+
+         The problem is that we replace the type of an enum member with a constant type,
+         but during class init we want to assign values to it, and fail with "assignment to non variable". */
+      val ident = Ident(TermName(enumDef.name))
+      q"$ident.asInstanceOf[$className]"
     }
 
     // <ENUM> ===> val <ENUM>: <EnumClass> = new <EnumClass>(name = "<ENUM>", ordinal = <EnumOrdinal>)
@@ -175,7 +185,7 @@ object EnumMacro {
     println("==================== TREE ====================")
     println(show(newClassDef))
     println(show(newObjectDef))
-  
+
     println("==================== RAW  ====================")
     println(showRaw(newClassDef))
     println(showRaw(newObjectDef))
